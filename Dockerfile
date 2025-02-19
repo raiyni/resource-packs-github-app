@@ -29,5 +29,5 @@ COPY --from=builder /app/lib ./lib
 EXPOSE 3000
 
 #CMD npm run start
-CMD ["npx", "probot", "run", "lib/index.js" ]
+# CMD ["npx", "probot", "run", "lib/index.js" ]
 
