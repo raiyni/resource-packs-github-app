@@ -87,15 +87,20 @@ const checkBranch = async (github: Octokit, number: number, branchName: string) 
 		return false
 	}
 
-	const branch = await github.repos.getBranch({
-		owner,
-		repo,
-		branch: branchName
-	})
+	try {
+		const branch = await github.repos.getBranch({
+			owner,
+			repo,
+			branch: branchName
+		})
 
-	if (branch.status == 200) {
-		createComment(github, number, `**Branch \`${branchName}\` exists already**`)
-		return false
+		if (branch.status == 200) {
+			createComment(github, number, `**Branch \`${branchName}\` exists already**`)
+			return false
+		}
+	} catch (e) {		
+		// Branch does not exist
+		return true
 	}
 }
 
