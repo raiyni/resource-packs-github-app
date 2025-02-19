@@ -32,17 +32,17 @@ const addLabels = async (github: Octokit, number: number, labels: string[]) => {
 	})
 }
 
-const removeLabels = async (github: Octokit, number: number, name: string) => {
-	try {
-		await github.issues.removeLabel({
+const removeLabels = async (github: Octokit, number: number, name: string, labels: Set<string>) => {
+	if (labels.has(name)) {
+		return github.issues.removeLabel({
 			owner,
 			repo,
 			issue_number: number,
 			name
 		})
-	} catch(e) {
-		// ignore
 	}
+
+	return Promise.resolve()
 }
 
 const createComment = async (github: Octokit, number: number, message: string) => {
@@ -108,6 +108,10 @@ export = (app: Probot) => {
 		const base = context.payload.pull_request.base
 		const head = context.payload.pull_request.head
 		const number = context.payload.pull_request.number
+
+		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue());
+		let labels = new Set(labelList.map(l => l.name));
+
 		if (base.ref == EMPTY_PACK) {
 			github.issues.addLabels({
 				owner,
@@ -128,7 +132,7 @@ export = (app: Probot) => {
 			})
 		}
 
-		removeLabels(github, number, PASSES_CHECKS)
+		removeLabels(github, number, PASSES_CHECKS, labels)
 		createComment(github, number, '**Checking pack...**')
 		github.rest.actions.createWorkflowDispatch({
 			owner,
@@ -146,13 +150,15 @@ export = (app: Probot) => {
 	app.on(['pull_request.labeled'], async (context) => {
 		const github = context.octokit
 
-		let { data }  = await github.issues.listLabelsOnIssue(context.issue())
+		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue());
+		let labels = new Set(labelList.map(l => l.name));
+
 		const label = context.payload.label.name
 		const number = context.payload.pull_request.number
 		const pull_request = context.payload.pull_request
 
 		if (label == PACK_APPROVED) {
-			const newPack = data.find((label) => label.name == NEW_PACK)
+			const newPack = labels.has(NEW_PACK)
 			const ref = pull_request.head.ref
 			if (newPack) {
 				const branch = await github.repos.getBranch({
@@ -163,7 +169,7 @@ export = (app: Probot) => {
 
 				if (branch.status == 200) {
 					createComment(github, number, `**Branch \`${ref}\` exists already**`)
-					removeLabels(github, number, PACK_APPROVED)
+					removeLabels(github, number, PACK_APPROVED, labels)
 					return
 				}
 
@@ -185,12 +191,12 @@ export = (app: Probot) => {
 					addLabels(github, number, [PACK_MERGED])
 				} else {
 					createComment(github, number, `**Failed to create branch \`${ref}\`**`)
-					removeLabels(github, number, PACK_APPROVED)
+					removeLabels(github, number, PACK_APPROVED,  labels)
 				}
 			} else {
 				if (!pull_request.mergeable || pull_request.mergeable_state != 'clean') {
 					createComment(github, number, `**Pack unable to be merged**`)
-					removeLabels(github, number, PACK_APPROVED)
+					removeLabels(github, number, PACK_APPROVED,  labels)
 					return
 				}
 
@@ -207,7 +213,7 @@ export = (app: Probot) => {
 					
 				} else {
 					createComment(github, number, `**Failed to merge pack**`)
-					removeLabels(github, number, PACK_APPROVED)
+					removeLabels(github, number, PACK_APPROVED,  labels)
 				}
 			}
 		}
@@ -222,8 +228,11 @@ export = (app: Probot) => {
 		const workflow_run = context.payload.workflow_run
 		const issue_number = +workflow_run.name.split('-')[0]
 
+		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue());
+		let labels = new Set(labelList.map(l => l.name));
+
 		if (workflow_run.conclusion == 'success') {
-			removeLabels(github, issue_number, HAS_ERRORS)
+			removeLabels(github, issue_number, HAS_ERRORS,  labels)
 			addLabels(github, issue_number, [PASSES_CHECKS])
 			createComment(github, issue_number, 'Pack checks passed... Waiting for approval')
 			return
