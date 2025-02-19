@@ -226,14 +226,15 @@ export = (app: Probot) => {
 
 	app.on(['workflow_run.completed'], async (context) => {
 		const github = context.octokit
-		if (context.payload.repository.full_name != `${owner}/${repo}` || context.payload.workflow_run.path != '.github/workflows/check-pack.yml') {
+		if (context.payload.repository.full_name != `${owner}/${repo}` || 
+			context.payload.workflow_run.path != '.github/workflows/check-pack.yml') {
 			return
 		}
 
 		const workflow_run = context.payload.workflow_run
 		const issue_number = +workflow_run.name.split('-')[0]
 
-		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue());
+		let { data: labelList } = await github.issues.listLabelsOnIssue({ owner, repo, issue_number });
 		let labels = new Set(labelList.map(l => l.name));
 
 		if (workflow_run.conclusion == 'success') {
