@@ -126,6 +126,7 @@ export = (app: Probot) => {
 			})
 
 			if (!checkBranch(github, number, head.ref)) {
+				removeLabels(github, number, PACK_APPROVED, labels)
 				return
 			}
 		} else if (base.ref.startsWith('pack-')) {
@@ -166,14 +167,7 @@ export = (app: Probot) => {
 			const newPack = labels.has(NEW_PACK)
 			const ref = pull_request.head.ref
 			if (newPack) {
-				const branch = await github.repos.getBranch({
-					owner,
-					repo,
-					branch: ref
-				})
-
-				if (branch.status == 200) {
-					createComment(github, number, `**Branch \`${ref}\` exists already**`)
+				if (!checkBranch(github, number, ref)) {
 					removeLabels(github, number, PACK_APPROVED, labels)
 					return
 				}
