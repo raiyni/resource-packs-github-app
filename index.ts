@@ -11,7 +11,7 @@ const owner = process.env.OWNER
 const repo = process.env.REPO
 
 const MASTER = 'master'
-const EMPTY_PACK = 'empty-pack'
+const EMPTY_PACK = 'pack-empty'
 
 const MARKER = '<!-- rpphc -->'
 
