@@ -12,7 +12,6 @@ RUN npm install
 # Copy the rest of the application code
 COPY . .
 
-# Build the app (if necessary, e.g., for TypeScript)
 RUN npm run build
 
 FROM node:23-alpine3.20 as app
