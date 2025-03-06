@@ -199,8 +199,8 @@ export = (app: Probot) => {
 			// Create a new release
 			// Sample/Resource packs ${{ github.ref_name }}
 			const release = await github.repos.createRelease({
-				owner,
-				repo,
+				owner: o,
+				repo: r,
 				tag_name: newTag,
 				name: `Release ${newTag}`,
 				body: `## Changelog\n\n${changelog}`
