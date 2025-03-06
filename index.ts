@@ -160,6 +160,10 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 			})
 			release = response.data
 		} catch (error) {
+			console.log(error)
+			if (true) 
+				return false
+
 			if (error.status === 404) {
 				// Release does not exist, create a new one
 				release = await octokit.repos.createRelease({
