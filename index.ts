@@ -212,6 +212,7 @@ export = (app: Probot) => {
 				.map((commit) => {
 					return `- [${commit.sha.substring(0, 8)}](/${owner}/${repo}/commit/${commit.sha}) - ${commit.commit.message.split('\n')[0]}`
 				})
+				.reverse()
 				.join('\n')
 
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, `## Changelog\n\n${changelog}`)
