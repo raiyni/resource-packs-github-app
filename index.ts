@@ -7,7 +7,7 @@ import unzipjs from './unzipjs'
 import 'dotenv/config'
 
 type Octokit = InstanceType<typeof ProbotOctokit>
-type Tag = RestEndpointMethodTypes["repos"]["listTags"]["response"]["data"][0]
+type Tag = RestEndpointMethodTypes['repos']['listTags']['response']['data'][0]
 
 const owner = process.env.OWNER
 const repo = process.env.REPO
@@ -107,7 +107,7 @@ const checkBranch = async (github: Octokit, number: number, branchName: string) 
 }
 
 const getTags = async (github: Octokit, owner: string, repo: string): Promise<Tag[]> => {
-	const tags =  await github.paginate(github.repos.listTags, {
+	const tags = await github.paginate(github.repos.listTags, {
 		owner,
 		repo,
 		per_page: 100 // Adjust the number of tags per page if needed
@@ -119,11 +119,10 @@ const getTags = async (github: Octokit, owner: string, repo: string): Promise<Ta
 	})
 
 	return tags
-};	
+}
 
 const getPreviousTag = function (octokit: Octokit, owner: string, repo: string, tags: Tag[], newTag: string) {
 	try {
-		
 		// Find the index of the new tag
 		const newTagIndex = tags.findIndex((tag) => tag.name === newTag)
 
@@ -145,32 +144,53 @@ const getPreviousTag = function (octokit: Octokit, owner: string, repo: string, 
 	}
 }
 
-const getCurrentTag = function (octokit: Octokit, owner: string, repo: string, tags: Tag[], newTag: string) {
+const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: string, tag: string, name: string, body: string) => {
 	try {
-		
-		// Find the index of the new tag
-		const newTagIndex = tags.findIndex((tag) => tag.name === newTag)
-
-		if (newTagIndex === -1) {
-			throw new Error(`Tag ${newTag} not found in the repository.`)
+		// Check if the release already exists
+		let release
+		try {
+			const response = await octokit.repos.getReleaseByTag({
+				owner,
+				repo,
+				tag
+			})
+			release = response.data
+		} catch (error) {
+			if (error.status === 404) {
+				// Release does not exist, create a new one
+				release = await octokit.repos.createRelease({
+					owner,
+					repo,
+					tag_name: tag,
+					name,
+					body
+				})
+				console.log(`New release created: ${release.data.html_url}`)
+			} else {
+				throw error // Re-throw other errors
+			}
 		}
 
-		// Get the previous tag
-		const previousTag = tags[newTagIndex]?.commit?.sha
-
-		if (!previousTag) {
-			throw new Error(`No previous tag found for ${newTag}.`)
+		// If the release exists, update it
+		if (release) {
+			const updatedRelease = await octokit.repos.updateRelease({
+				owner,
+				repo,
+				release_id: release.id,
+				tag_name: tag,
+				name,
+				body
+			})
+			console.log(`Release updated: ${updatedRelease.data.html_url}`)
+			return updatedRelease.data
 		}
-
-		return previousTag
 	} catch (error) {
-		console.error('Error fetching previous tag:', error)
+		console.error('Error updating or creating release:', error)
 		throw error
 	}
 }
 
 export = (app: Probot) => {
-	// on tag created, check if it's a release tag and generate a changelog
 	app.on('create', async (context) => {
 		const github = context.octokit
 		const tag = context.payload.ref
@@ -178,33 +198,23 @@ export = (app: Probot) => {
 		if (context.payload.ref_type == 'tag' && tag.startsWith('v')) {
 			const newTag = tag
 
-			const o = context.payload.repository.owner.login
-			const r = context.payload.repository.name
-
-			const tags = await getTags(github, o, r)
-			const previousTag = getPreviousTag(github, o, r, tags, newTag)
-
-			console.log('comparing', newTag, 'to', previousTag)
+			const tags = await getTags(github, owner, repo)
+			const previousTag = getPreviousTag(github, owner, repo, tags, newTag)
 
 			const commits = await github.repos.compareCommits({
-				owner: o,
-				repo: r,
+				owner,
+				repo,
 				head: newTag,
 				base: previousTag
 			})
 
-			// Extract commit messages
-			const changelog = commits.data.commits.map((commit) => `- ${commit.commit.message.split('\n')[0]}`).join('\n')
+			const changelog = commits.data.commits
+				.map((commit) => {
+					return `- [${commit.sha.substring(0, 8)}](/${owner}/${repo}/commit/${commit.sha}) - ${commit.commit.message.split('\n')[0]}`
+				})
+				.join('\n')
 
-			// Create a new release
-			// Sample/Resource packs ${{ github.ref_name }}
-			const release = await github.repos.createRelease({
-				owner: o,
-				repo: r,
-				tag_name: newTag,
-				name: `Release ${newTag}`,
-				body: `## Changelog\n\n${changelog}`
-			})
+			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, `## Changelog\n\n${changelog}`)
 		}
 	})
 
