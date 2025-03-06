@@ -259,7 +259,7 @@ export = (app: Probot) => {
 
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, `## Changelog\n\n${changelog}`)
 
-			const message = `# New release: [${newTag}](${release.html_url})
+			const message = `# New release: [${newTag}](<${release.html_url}>)
 [direct download](<https://github.com/melkypie/resource-packs/archive/refs/tags/${newTag}.zip>)
 ## Changelog
 
