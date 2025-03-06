@@ -227,6 +227,8 @@ export = (app: Probot) => {
 		const tag = refs[2]
 		const refType = refs[1]
 
+		console.log(context.payload.ref)
+
 		if (refType == 'tag' && tag.startsWith('v')) {
 			const newTag = tag
 
@@ -248,6 +250,8 @@ export = (app: Probot) => {
 				.join('\n')
 			
 			const body = `## Changelog\n\n${changelog}`
+
+			console.log(`Generated body for ${newTag}:\n\n${body}`)
 
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, body)
 			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, `# New release: [${newTag}](${release.html_url})\n\n${body}`)
