@@ -242,7 +242,7 @@ export = (app: Probot) => {
 
 			const changelog = commits.data.commits
 				.map((commit) => {
-					return `- [${commit.sha.substring(0, 8)}](https://github.com/${owner}/${repo}/commit/${commit.sha}) - ${commit.commit.message.split('\n')[0]}`
+					return `- [${commit.sha.substring(0, 8)}](<https://github.com/${owner}/${repo}/commit/${commit.sha}>) - ${commit.commit.message.split('\n')[0]}`
 				})
 				.reverse()
 				.join('\n')
@@ -260,11 +260,10 @@ export = (app: Probot) => {
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, `## Changelog\n\n${changelog}`)
 
 			const message = `# New release: [${newTag}](${release.html_url})
-[direct download](${release.zipball_url})
+[direct download](<https://github.com/melkypie/resource-packs/archive/refs/tags/${newTag}.zip>)
 ## Changelog
 
 \`\`\`${webhookLog}\`\`\`
-
 <@&1347304836110225418>`
 
 			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, message)
