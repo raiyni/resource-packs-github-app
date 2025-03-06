@@ -132,7 +132,7 @@ const getPreviousTag = function (octokit: Octokit, owner: string, repo: string, 
 		}
 
 		// Get the previous tag
-		const previousTag = tags[newTagIndex + 1]?.commit?.sha
+		const previousTag = tags[newTagIndex + 1]?.name
 
 		if (!previousTag) {
 			throw new Error(`No previous tag found for ${newTag}.`)
@@ -182,14 +182,13 @@ export = (app: Probot) => {
 			const r = context.payload.repository.name
 
 			const tags = await getTags(github, o, r)
-			const previousTagSha = getPreviousTag(github, o, r, tags, newTag)
-			const newTagSha = getCurrentTag(github, o, r, tags, newTag)
+			const previousTag = getPreviousTag(github, o, r, tags, newTag)
 
-			const commits = await github.repos.compareCommits({
+			const commits = await github.repos.compareCommitsWithBasehead({
 				owner,
 				repo,
-				base: previousTagSha,
-				head: newTagSha
+				head: newTag,
+				basehead: previousTag
 			})
 
 			// Extract commit messages
