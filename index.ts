@@ -2,10 +2,12 @@
 // See: https://developer.github.com/v3/repos/deployments/ to learn more
 
 import { Probot, ProbotOctokit } from 'probot'
+import { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
 import unzipjs from './unzipjs'
 import 'dotenv/config'
 
 type Octokit = InstanceType<typeof ProbotOctokit>
+type Tag = RestEndpointMethodTypes["repos"]["listTags"]["response"]["data"][0]
 
 const owner = process.env.OWNER
 const repo = process.env.REPO
@@ -104,21 +106,24 @@ const checkBranch = async (github: Octokit, number: number, branchName: string) 
 	}
 }
 
-const getPreviousTag = async function (octokit: Octokit, owner: string, repo: string, newTag: string) {
+const getTags = async (github: Octokit, owner: string, repo: string): Promise<Tag[]> => {
+	const tags =  await github.paginate(github.repos.listTags, {
+		owner,
+		repo,
+		per_page: 100 // Adjust the number of tags per page if needed
+	})
+
+	// Sort tags by their creation date (assuming semantic versioning)
+	tags.sort((a, b) => {
+		return b.name.localeCompare(a.name, undefined, { numeric: true })
+	})
+
+	return tags
+};	
+
+const getPreviousTag = function (octokit: Octokit, owner: string, repo: string, tags: Tag[], newTag: string) {
 	try {
-		// Fetch all tags in the repository
-		const tags = await octokit.paginate(octokit.repos.listTags, {
-			owner,
-			repo,
-			per_page: 100 // Adjust the number of tags per page if needed
-		})
-
-		// Sort tags by their creation date (assuming semantic versioning)
-		tags.sort((a, b) => {
-			return b.name.localeCompare(a.name, undefined, { numeric: true })
-		})
-
-		console.log('Tags:', tags)
+		
 		// Find the index of the new tag
 		const newTagIndex = tags.findIndex((tag) => tag.name === newTag)
 
@@ -127,7 +132,31 @@ const getPreviousTag = async function (octokit: Octokit, owner: string, repo: st
 		}
 
 		// Get the previous tag
-		const previousTag = tags[newTagIndex + 1]?.name
+		const previousTag = tags[newTagIndex + 1]?.commit?.sha
+
+		if (!previousTag) {
+			throw new Error(`No previous tag found for ${newTag}.`)
+		}
+
+		return previousTag
+	} catch (error) {
+		console.error('Error fetching previous tag:', error)
+		throw error
+	}
+}
+
+const getCurrentTag = function (octokit: Octokit, owner: string, repo: string, tags: Tag[], newTag: string) {
+	try {
+		
+		// Find the index of the new tag
+		const newTagIndex = tags.findIndex((tag) => tag.name === newTag)
+
+		if (newTagIndex === -1) {
+			throw new Error(`Tag ${newTag} not found in the repository.`)
+		}
+
+		// Get the previous tag
+		const previousTag = tags[newTagIndex]?.commit?.sha
 
 		if (!previousTag) {
 			throw new Error(`No previous tag found for ${newTag}.`)
@@ -152,13 +181,15 @@ export = (app: Probot) => {
 			const o = context.payload.repository.owner.login
 			const r = context.payload.repository.name
 
-			const previousTag = await getPreviousTag(github, o, r, newTag)
+			const tags = await getTags(github, o, r)
+			const previousTagSha = getPreviousTag(github, o, r, tags, newTag)
+			const newTagSha = getCurrentTag(github, o, r, tags, newTag)
 
 			const commits = await github.repos.compareCommits({
 				owner,
 				repo,
-				base: previousTag,
-				head: newTag
+				base: previousTagSha,
+				head: newTagSha
 			})
 
 			// Extract commit messages
