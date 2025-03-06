@@ -160,6 +160,7 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 			})
 			release = response.data
 		} catch (error) {
+			console.log(error)
 			if (error.status === 404) {
 				// Release does not exist, create a new one
 				release = await octokit.rest.repos.createRelease({
@@ -170,6 +171,8 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 					body
 				})
 				console.log(`New release created: ${release.data.html_url}`)
+
+				return release.data
 			} else {
 				throw error // Re-throw other errors
 			}
@@ -243,7 +246,7 @@ export = (app: Probot) => {
 			const body = `## Changelog\n\n${changelog}`
 
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, body)
-			// const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, `# New release: [${newTag}](${release.zipball_url})\n\n${body}`)
+			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, `# New release: [${newTag}](${release.zipball_url})\n\n${body}`)
 		}
 	})
 
