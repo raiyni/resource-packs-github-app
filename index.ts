@@ -3,7 +3,7 @@
 
 import { Probot, ProbotOctokit } from 'probot'
 import unzipjs from './unzipjs'
-import "dotenv/config"
+import 'dotenv/config'
 
 type Octokit = InstanceType<typeof ProbotOctokit>
 
@@ -98,13 +98,80 @@ const checkBranch = async (github: Octokit, number: number, branchName: string) 
 			createComment(github, number, `**Branch \`${branchName}\` exists already**`)
 			return false
 		}
-	} catch (e) {		
+	} catch (e) {
 		// Branch does not exist
 		return true
 	}
 }
 
+const getPreviousTag = async function (octokit: Octokit, owner: string, repo: string, newTag: string) {
+	try {
+		// Fetch all tags in the repository
+		const tags = await octokit.paginate(octokit.repos.listTags, {
+			owner,
+			repo,
+			per_page: 100 // Adjust the number of tags per page if needed
+		})
+
+		// Sort tags by their creation date (assuming semantic versioning)
+		tags.sort((a, b) => {
+			return b.name.localeCompare(a.name, undefined, { numeric: true })
+		})
+
+		// Find the index of the new tag
+		const newTagIndex = tags.findIndex((tag) => tag.name === newTag)
+
+		if (newTagIndex === -1) {
+			throw new Error(`Tag ${newTag} not found in the repository.`)
+		}
+
+		// Get the previous tag
+		const previousTag = tags[newTagIndex + 1]?.name
+
+		if (!previousTag) {
+			throw new Error(`No previous tag found for ${newTag}.`)
+		}
+
+		return previousTag
+	} catch (error) {
+		console.error('Error fetching previous tag:', error)
+		throw error
+	}
+}
+
 export = (app: Probot) => {
+	// on tag created, check if it's a release tag and generate a changelog
+	app.on('create', async (context) => {
+		const github = context.octokit
+		const ref = context.payload.ref
+		const tag = ref.split('/')[2]
+
+		if (context.payload.ref_type == 'tag' && tag.startsWith('v')) {
+			const newTag = tag
+			const previousTag = await getPreviousTag(github, owner, repo, newTag)
+
+			const commits = await github.repos.compareCommits({
+				owner,
+				repo,
+				base: previousTag,
+				head: newTag
+			})
+
+			// Extract commit messages
+			const changelog = commits.data.commits.map((commit) => `- ${commit.commit.message.split('\n')[0]}`).join('\n')
+
+			// Create a new release
+			// Sample/Resource packs ${{ github.ref_name }}
+			const release = await github.repos.createRelease({
+				owner,
+				repo,
+				tag_name: newTag,
+				name: `Release ${newTag}`,
+				body: `## Changelog\n\n${changelog}`
+			})
+		}
+	})
+
 	app.on(['pull_request.opened', 'pull_request.synchronize', 'pull_request.reopened'], async (context) => {
 		const github = context.octokit
 		const workflow_id = 'check-pack.yml'
@@ -114,8 +181,8 @@ export = (app: Probot) => {
 		const head = context.payload.pull_request.head
 		const number = context.payload.pull_request.number
 
-		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue());
-		let labels = new Set(labelList.map(l => l.name));
+		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue())
+		let labels = new Set(labelList.map((l) => l.name))
 
 		if (base.ref == EMPTY_PACK) {
 			github.issues.addLabels({
@@ -156,8 +223,8 @@ export = (app: Probot) => {
 	app.on(['pull_request.labeled'], async (context) => {
 		const github = context.octokit
 
-		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue());
-		let labels = new Set(labelList.map(l => l.name));
+		let { data: labelList } = await github.issues.listLabelsOnIssue(context.issue())
+		let labels = new Set(labelList.map((l) => l.name))
 
 		const label = context.payload.label.name
 		const number = context.payload.pull_request.number
@@ -190,12 +257,12 @@ export = (app: Probot) => {
 					addLabels(github, number, [PACK_MERGED])
 				} else {
 					createComment(github, number, `**Failed to create branch \`${ref}\`**`)
-					removeLabels(github, number, PACK_APPROVED,  labels)
+					removeLabels(github, number, PACK_APPROVED, labels)
 				}
 			} else {
 				if (!pull_request.mergeable || pull_request.mergeable_state != 'clean') {
 					createComment(github, number, `**Pack unable to be merged**`)
-					removeLabels(github, number, PACK_APPROVED,  labels)
+					removeLabels(github, number, PACK_APPROVED, labels)
 					return
 				}
 
@@ -209,10 +276,9 @@ export = (app: Probot) => {
 				if (res.status == 200) {
 					createComment(github, number, `**Pack approved and merged successfully**`)
 					addLabels(github, number, [PACK_MERGED])
-					
 				} else {
 					createComment(github, number, `**Failed to merge pack**`)
-					removeLabels(github, number, PACK_APPROVED,  labels)
+					removeLabels(github, number, PACK_APPROVED, labels)
 				}
 			}
 		}
@@ -220,19 +286,18 @@ export = (app: Probot) => {
 
 	app.on(['workflow_run.completed'], async (context) => {
 		const github = context.octokit
-		if (context.payload.repository.full_name != `${owner}/${repo}` || 
-			context.payload.workflow_run.path != '.github/workflows/check-pack.yml') {
+		if (context.payload.repository.full_name != `${owner}/${repo}` || context.payload.workflow_run.path != '.github/workflows/check-pack.yml') {
 			return
 		}
 
 		const workflow_run = context.payload.workflow_run
 		const issue_number = +workflow_run.name.split('-')[0]
 
-		let { data: labelList } = await github.issues.listLabelsOnIssue({ owner, repo, issue_number });
-		let labels = new Set(labelList.map(l => l.name));
+		let { data: labelList } = await github.issues.listLabelsOnIssue({ owner, repo, issue_number })
+		let labels = new Set(labelList.map((l) => l.name))
 
 		if (workflow_run.conclusion == 'success') {
-			removeLabels(github, issue_number, HAS_ERRORS,  labels)
+			removeLabels(github, issue_number, HAS_ERRORS, labels)
 			addLabels(github, issue_number, [PASSES_CHECKS])
 			createComment(github, issue_number, 'Pack checks passed... Waiting for approval')
 			return
