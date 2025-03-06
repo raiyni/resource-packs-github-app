@@ -151,7 +151,7 @@ const getPreviousTag = function (octokit: Octokit, owner: string, repo: string, 
 const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: string, tag: string, name: string, body: string) => {
 	try {
 		// Check if the release already exists
-		let release: RestEndpointMethodTypes["repos"]["getReleaseByTag"]["response"]["data"]
+		let release: RestEndpointMethodTypes['repos']['getReleaseByTag']['response']['data']
 		try {
 			const response = await octokit.rest.repos.getReleaseByTag({
 				owner,
@@ -203,20 +203,20 @@ const sendDiscordWebhook = async (url: string, body: string) => {
 		headers: {
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify({ 
+		body: JSON.stringify({
 			username: WEBHOOK_USER,
 			avatar_url: WEBHOOK_AVATAR,
-			
+
 			content: body,
-			
+
 			allowed_mentions: {
-				parse: ['roles', 'users', 'everyone'],
-			},
+				parse: ['roles', 'users', 'everyone']
+			}
 		})
 	})
 
 	return res
-};
+}
 
 export = (app: Probot) => {
 	app.on('push', async (context) => {
@@ -246,15 +246,26 @@ export = (app: Probot) => {
 				})
 				.reverse()
 				.join('\n')
-			
-			const body = `## Changelog\n\n${changelog}`
 
-			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, body)
-
-			let message = `<@&1347304836110225418>\n\n# New release: [${newTag}](${release.html_url})\n\n${body}`
-			if (message.length > 2000) {	
-				message = message.substring(0, 1997) + '...'
+			let webhookLog = commits.data.commits
+				.map((commit) => {
+					return `- ${commit.commit.message.split('\n')[0]}`
+				})
+				.reverse()
+				.join('\n')
+			if (webhookLog.length > 1900) {
+				webhookLog = webhookLog.substring(0, 1900) + '...'
 			}
+
+			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, `## Changelog\n\n${changelog}`)
+
+			const message = `# New release: [${newTag}](${release.html_url})
+[direct download](${release.assets[0].browser_download_url})
+## Changelog
+
+\`\`\`${webhookLog}\`\`\`
+
+<@&1347304836110225418>`
 
 			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, message)
 			if (webhook.status != 200) {
