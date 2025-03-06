@@ -151,7 +151,7 @@ const getPreviousTag = function (octokit: Octokit, owner: string, repo: string, 
 const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: string, tag: string, name: string, body: string) => {
 	try {
 		// Check if the release already exists
-		let release
+		let release: RestEndpointMethodTypes["repos"]["getReleaseByTag"]["response"]["data"]
 		try {
 			const response = await octokit.rest.repos.getReleaseByTag({
 				owner,
@@ -163,16 +163,16 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 			console.log(error)
 			if (error.status === 404) {
 				// Release does not exist, create a new one
-				release = await octokit.rest.repos.createRelease({
+				const res = await octokit.rest.repos.createRelease({
 					owner,
 					repo,
 					tag_name: tag,
 					name,
 					body
 				})
-				console.log(`New release created: ${release.data.html_url}`)
+				console.log(`New release created: ${res.data.html_url}`)
 
-				return release.data
+				return res.data
 			} else {
 				throw error // Re-throw other errors
 			}
@@ -180,7 +180,7 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 
 		// If the release exists, update it
 		if (release) {
-			const updatedRelease = await octokit.rest.repos.updateRelease({
+			const res = await octokit.rest.repos.updateRelease({
 				owner,
 				repo,
 				release_id: release.id,
@@ -188,8 +188,8 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 				name,
 				body
 			})
-			console.log(`Release updated: ${updatedRelease.data.html_url}`)
-			return updatedRelease.data
+			console.log(`Release updated: ${res.data.html_url}`)
+			return res.data
 		}
 	} catch (error) {
 		console.error('Error updating or creating release:', error)
@@ -219,11 +219,15 @@ const sendDiscordWebhook = async (url: string, body: string) => {
 };
 
 export = (app: Probot) => {
-	app.on('create', async (context) => {
+	app.on('push', async (context) => {
 		const github = context.octokit
-		const tag = context.payload.ref
+		const ref = context.payload.ref
+		const refs = ref.split('/')
 
-		if (context.payload.ref_type == 'tag' && tag.startsWith('v')) {
+		const tag = refs[2]
+		const refType = refs[1]
+
+		if (refType == 'tag' && tag.startsWith('v')) {
 			const newTag = tag
 
 			const tags = await getTags(github, owner, repo)
@@ -238,7 +242,7 @@ export = (app: Probot) => {
 
 			const changelog = commits.data.commits
 				.map((commit) => {
-					return `- [${commit.sha.substring(0, 8)}](/${owner}/${repo}/commit/${commit.sha}) - ${commit.commit.message.split('\n')[0]}`
+					return `- [${commit.sha.substring(0, 8)}](https://github.com/${owner}/${repo}/commit/${commit.sha}) - ${commit.commit.message.split('\n')[0]}`
 				})
 				.reverse()
 				.join('\n')
@@ -246,7 +250,7 @@ export = (app: Probot) => {
 			const body = `## Changelog\n\n${changelog}`
 
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, body)
-			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, `# New release: [${newTag}](${release.zipball_url})\n\n${body}`)
+			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, `# New release: [${newTag}](${release.assets_url})\n\n${body}`)
 		}
 	})
 
