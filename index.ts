@@ -186,11 +186,11 @@ export = (app: Probot) => {
 
 			console.log('comparing', newTag, 'to', previousTag)
 
-			const commits = await github.repos.compareCommitsWithBasehead({
-				owner,
-				repo,
+			const commits = await github.repos.compareCommits({
+				owner: o,
+				repo: r,
 				head: newTag,
-				basehead: previousTag
+				base: previousTag
 			})
 
 			// Extract commit messages
