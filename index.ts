@@ -148,7 +148,11 @@ export = (app: Probot) => {
 
 		if (context.payload.ref_type == 'tag' && tag.startsWith('v')) {
 			const newTag = tag
-			const previousTag = await getPreviousTag(github, owner, repo, newTag)
+
+			const o = context.payload.repository.owner.login
+			const r = context.payload.repository.name
+
+			const previousTag = await getPreviousTag(github, o, r, newTag)
 
 			const commits = await github.repos.compareCommits({
 				owner,
