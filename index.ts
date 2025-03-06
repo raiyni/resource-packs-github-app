@@ -12,6 +12,10 @@ type Tag = RestEndpointMethodTypes['repos']['listTags']['response']['data'][0]
 const owner = process.env.OWNER
 const repo = process.env.REPO
 
+const CHANGELOG_WEBHOOK = process.env.CHANGELOG_WEBHOOK
+const WEBHOOK_USER = process.env.WEBHOOK_USER
+const WEBHOOK_AVATAR = process.env.WEBHOOK_AVATAR
+
 const MASTER = 'master'
 const EMPTY_PACK = 'pack-empty'
 
@@ -190,6 +194,27 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 	}
 }
 
+const sendDiscordWebhook = async (url: string, body: string) => {
+	const res = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ 
+			username: WEBHOOK_USER,
+			avatar_url: WEBHOOK_AVATAR,
+			
+			content: body,
+			
+			allowed_mentions: {
+				parse: ['roles', 'users', 'everyone'],
+			},
+		})
+	})
+
+	return res
+};
+
 export = (app: Probot) => {
 	app.on('create', async (context) => {
 		const github = context.octokit
@@ -214,8 +239,11 @@ export = (app: Probot) => {
 				})
 				.reverse()
 				.join('\n')
+			
+			const body = `## Changelog\n\n${changelog}`
 
-			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, `## Changelog\n\n${changelog}`)
+			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, body)
+			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, `# New release: [${newTag}](${release.zipball_url})\n\n${body}`)
 		}
 	})
 
