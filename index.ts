@@ -184,6 +184,8 @@ export = (app: Probot) => {
 			const tags = await getTags(github, o, r)
 			const previousTag = getPreviousTag(github, o, r, tags, newTag)
 
+			console.log('comparing', newTag, 'to', previousTag)
+
 			const commits = await github.repos.compareCommitsWithBasehead({
 				owner,
 				repo,
