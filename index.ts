@@ -250,7 +250,13 @@ export = (app: Probot) => {
 			const body = `## Changelog\n\n${changelog}`
 
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, body)
-			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, `# New release: [${newTag}](${release.html_url})\n\n${body}\n<@&1347304836110225418>`)
+
+			let message = `<@&1347304836110225418>\n\n# New release: [${newTag}](${release.html_url})\n\n${body}`
+			if (message.length > 2000) {	
+				message = message.substring(0, 1997) + '...'
+			}
+
+			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, message)
 			if (webhook.status != 200) {
 				console.error(`Failed to send webhook: ${webhook.status} ${webhook.statusText}`)
 				const text = await webhook.text()
