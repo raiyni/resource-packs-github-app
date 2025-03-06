@@ -118,6 +118,7 @@ const getPreviousTag = async function (octokit: Octokit, owner: string, repo: st
 			return b.name.localeCompare(a.name, undefined, { numeric: true })
 		})
 
+		console.log('Tags:', tags)
 		// Find the index of the new tag
 		const newTagIndex = tags.findIndex((tag) => tag.name === newTag)
 
