@@ -143,8 +143,7 @@ export = (app: Probot) => {
 	// on tag created, check if it's a release tag and generate a changelog
 	app.on('create', async (context) => {
 		const github = context.octokit
-		const ref = context.payload.ref
-		const tag = ref.split('/')[2]
+		const tag = context.payload.ref
 
 		if (context.payload.ref_type == 'tag' && tag.startsWith('v')) {
 			const newTag = tag
