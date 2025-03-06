@@ -260,7 +260,7 @@ export = (app: Probot) => {
 			const release = await updateOrCreateRelease(github, owner, repo, newTag, `Sample/Resource packs  ${newTag}`, `## Changelog\n\n${changelog}`)
 
 			const message = `# New release: [${newTag}](${release.html_url})
-[direct download](${release.assets[0].browser_download_url})
+[direct download](${release.zipball_url})
 ## Changelog
 
 \`\`\`${webhookLog}\`\`\`
