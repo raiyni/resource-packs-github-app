@@ -153,35 +153,31 @@ const updateOrCreateRelease = async (octokit: Octokit, owner: string, repo: stri
 		// Check if the release already exists
 		let release
 		try {
-			const response = await octokit.repos.getReleaseByTag({
+			const response = await octokit.rest.repos.getReleaseByTag({
 				owner,
 				repo,
 				tag
 			})
 			release = response.data
 		} catch (error) {
-			console.log(error)
-			if (true) 
-				return false
-
-			// if (error.status === 404) {
-			// 	// Release does not exist, create a new one
-			// 	release = await octokit.repos.createRelease({
-			// 		owner,
-			// 		repo,
-			// 		tag_name: tag,
-			// 		name,
-			// 		body
-			// 	})
-			// 	console.log(`New release created: ${release.data.html_url}`)
-			// } else {
-			// 	throw error // Re-throw other errors
-			// }
+			if (error.status === 404) {
+				// Release does not exist, create a new one
+				release = await octokit.rest.repos.createRelease({
+					owner,
+					repo,
+					tag_name: tag,
+					name,
+					body
+				})
+				console.log(`New release created: ${release.data.html_url}`)
+			} else {
+				throw error // Re-throw other errors
+			}
 		}
 
 		// If the release exists, update it
 		if (release) {
-			const updatedRelease = await octokit.repos.updateRelease({
+			const updatedRelease = await octokit.rest.repos.updateRelease({
 				owner,
 				repo,
 				release_id: release.id,
