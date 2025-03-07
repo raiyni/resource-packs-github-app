@@ -24,10 +24,10 @@ RUN npm install --omit=dev
 
 COPY . .
 
-COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
 #CMD npm run start
-CMD ["npx", "probot", "run", "./lib/index.js" ]
+CMD ["npx", "probot", "run", "./dist/index.js" ]
 

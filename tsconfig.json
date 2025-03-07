@@ -3,11 +3,15 @@
       "target": "es5",
       "module": "commonjs",
       "moduleResolution": "node",
-      "outDir": "./lib",
+      "outDir": "./dist",
+      "rootDir": "./src",
       "skipLibCheck": true,
       "strict": false,
       "allowJs": true,
       "esModuleInterop": true,
       "forceConsistentCasingInFileNames": true
-    }
+    },
+    "include": [
+      "src/"
+    ]
   }
