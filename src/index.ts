@@ -354,7 +354,7 @@ export = (app: Probot) => {
 				})
 
 				if (res.status == 201) {
-					createComment(github, number, `**Branch \`${ref}\` created successfully**`)
+					createComment(github, number, `**Branch \`${newBranch}\` created successfully**`)
 					github.rest.issues.update({
 						owner,
 						repo,
