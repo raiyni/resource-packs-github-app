@@ -295,7 +295,9 @@ export = (app: Probot) => {
 				labels: [NEW_PACK]
 			})
 
-			if (!checkBranch(github, number, head.ref)) {
+			const branch = head.ref.startsWith('pack-') ? head.ref : 'pack-' + head.ref;
+
+			if (!checkBranch(github, number, branch)) {
 				removeLabels(github, number, PACK_APPROVED, labels)
 				return
 			}
@@ -337,7 +339,9 @@ export = (app: Probot) => {
 			const newPack = labels.has(NEW_PACK)
 			const ref = pull_request.head.ref
 			if (newPack) {
-				if (!checkBranch(github, number, ref)) {
+				
+				const newBranch = ref.startsWith('pack-') ? ref : 'pack-' + ref;
+				if (!checkBranch(github, number, newBranch)) {
 					removeLabels(github, number, PACK_APPROVED, labels)
 					return
 				}
@@ -345,7 +349,7 @@ export = (app: Probot) => {
 				const res = await github.git.createRef({
 					owner,
 					repo,
-					ref: `refs/heads/${ref}`,
+					ref: `refs/heads/${newBranch}`,
 					sha: pull_request.head.sha
 				})
 
@@ -359,7 +363,7 @@ export = (app: Probot) => {
 					})
 					addLabels(github, number, [PACK_MERGED])
 				} else {
-					createComment(github, number, `**Failed to create branch \`${ref}\`**`)
+					createComment(github, number, `**Failed to create branch \`${newBranch}\`**`)
 					removeLabels(github, number, PACK_APPROVED, labels)
 				}
 			} else {
