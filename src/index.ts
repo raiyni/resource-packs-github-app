@@ -265,7 +265,7 @@ export = (app: Probot) => {
 [direct download](<https://github.com/melkypie/resource-packs/archive/refs/tags/${newTag}.zip>)
 ## Changelog
 
-\`\`\`${webhookLog}\`\`\`
+\`\`\`\n${webhookLog}\n\`\`\`
 <@&1347304836110225418>`
 
 			const webhook = await sendDiscordWebhook(CHANGELOG_WEBHOOK, message)
