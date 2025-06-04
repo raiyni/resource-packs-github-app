@@ -29,6 +29,8 @@ const NEW_PACK = 'Pack: new'
 const PASSES_CHECKS = 'Checks: passed'
 const HAS_ERRORS = 'Checks: failed'
 
+const CHECK_PACK = 'check-pack.yml'
+
 const addLabels = async (github: Octokit, number: number, labels: string[]) => {
 	return github.issues.addLabels({
 		owner,
@@ -277,7 +279,7 @@ export = (app: Probot) => {
 
 	app.on(['pull_request.opened', 'pull_request.synchronize', 'pull_request.reopened'], async (context) => {
 		const github = context.octokit
-		const workflow_id = 'check-pack.yml'
+		
 		const ref = MASTER
 
 		const base = context.payload.pull_request.base
@@ -315,7 +317,7 @@ export = (app: Probot) => {
 		github.rest.actions.createWorkflowDispatch({
 			owner,
 			repo,
-			workflow_id,
+			workflow_id: CHECK_PACK,
 			ref,
 			inputs: {
 				pr: number + '',
