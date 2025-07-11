@@ -28,6 +28,7 @@ const NEW_PACK = 'Pack: new'
 
 const PASSES_CHECKS = 'Checks: passed'
 const HAS_ERRORS = 'Checks: failed'
+const HAS_WARNINGS = 'Checks: warning'
 
 const CHECK_PACK = 'check-pack.yml'
 
@@ -78,6 +79,28 @@ const parseErrors = (logs: string) => {
 					.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s*/, '')
 					.replace(/[^\x00-\x7F]/g, '')
 					.replace(/\x1B\[31m/g, '')
+					.replace(/\x1B\[0m/g, '')
+					.trim()
+			)
+			.filter((line: string | any[]) => line.length > 0)
+			.map((line: string) => '- ' + line)
+			.join('\n')
+	}
+	return null
+}
+
+const parseWarnings = (logs: string) => {
+	const regex = /\[WARNINGS\]\n([\s\S]*?)\[\/WARNINGS\]/
+	const match = logs.match(regex)
+	if (match) {
+		// Filter out timestamps and trim whitespace
+		return match[1]
+			.split('\n')
+			.map((line: string) =>
+				line
+					.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s*/, '')
+					.replace(/[^\x00-\x7F]/g, '')
+					.replace(/\x1B\[33m/g, '')
 					.replace(/\x1B\[0m/g, '')
 					.trim()
 			)
@@ -404,12 +427,15 @@ export = (app: Probot) => {
 
 		let { data: labelList } = await github.issues.listLabelsOnIssue({ owner, repo, issue_number })
 		let labels = new Set(labelList.map((l) => l.name))
+		
+		let message = ``;
+
+		removeLabels(github, issue_number, HAS_WARNINGS, labels)
 
 		if (workflow_run.conclusion == 'success') {
 			removeLabels(github, issue_number, HAS_ERRORS, labels)
 			addLabels(github, issue_number, [PASSES_CHECKS])
-			createComment(github, issue_number, 'Pack checks passed... Waiting for approval')
-			return
+			message += 'Pack checks passed... Waiting for approval'
 		}
 
 		const logsUrl = `GET /repos/${owner}/${repo}/actions/runs/${workflow_run.id}/logs`
@@ -419,15 +445,23 @@ export = (app: Probot) => {
 		for (let item of unzipped) {
 			if (item.name.includes('Read errors')) {
 				const logs = item.toString()
-				const errors = parseErrors(logs)
 
-				if (errors) {
-					const message = `**Errors found in pack**\n\n${errors}\n`
-					createComment(github, issue_number, message)
+				const warnings = parseWarnings(logs)
+				if (warnings) {
+					message += `**Warnings found in pack**\n\n${warnings}\n\n`
 					addLabels(github, issue_number, [HAS_ERRORS])
+				}
+
+				const errors = parseErrors(logs)
+				if (errors) {
+					message += `**Errors found in pack**\n\n${errors}\n`
+					addLabels(github, issue_number, [HAS_WARNINGS])
+					createComment(github, issue_number, message)
 					return
 				}
 			}
 		}
+		
+		createComment(github, issue_number, message)
 	})
 }
