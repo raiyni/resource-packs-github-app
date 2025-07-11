@@ -462,6 +462,11 @@ export = (app: Probot) => {
 			}
 		}
 		
-		createComment(github, issue_number, message)
+		if (!!message) {
+			createComment(github, issue_number, message)
+		} else {
+			createComment(github, issue_number, `**Error: No logs found**`)
+			addLabels(github, issue_number, [HAS_ERRORS])
+		}
 	})
 }
