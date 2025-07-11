@@ -78,8 +78,7 @@ const parseErrors = (logs: string) => {
 				line
 					.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s*/, '')
 					.replace(/[^\x00-\x7F]/g, '')
-					.replace(/\x1B\[31m/g, '')
-					.replace(/\x1B\[0m/g, '')
+					.replace(/\x1B\[[0-9]+m/g, '')
 					.trim()
 			)
 			.filter((line: string | any[]) => line.length > 0)
@@ -100,8 +99,7 @@ const parseWarnings = (logs: string) => {
 				line
 					.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s*/, '')
 					.replace(/[^\x00-\x7F]/g, '')
-					.replace(/\x1B\[33m/g, '')
-					.replace(/\x1B\[0m/g, '')
+					.replace(/\x1B\[[0-9]+m/g, '')
 					.trim()
 			)
 			.filter((line: string | any[]) => line.length > 0)
@@ -435,7 +433,7 @@ export = (app: Probot) => {
 		if (workflow_run.conclusion == 'success') {
 			removeLabels(github, issue_number, HAS_ERRORS, labels)
 			addLabels(github, issue_number, [PASSES_CHECKS])
-			message += 'Pack checks passed... Waiting for approval'
+			message += `Pack checks passed... Waiting for approval\n\n`
 		}
 
 		const logsUrl = `GET /repos/${owner}/${repo}/actions/runs/${workflow_run.id}/logs`
