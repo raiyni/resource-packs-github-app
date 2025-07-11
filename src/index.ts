@@ -449,13 +449,13 @@ export = (app: Probot) => {
 				const warnings = parseWarnings(logs)
 				if (warnings) {
 					message += `**Warnings found in pack**\n\n${warnings}\n\n`
-					addLabels(github, issue_number, [HAS_ERRORS])
+					addLabels(github, issue_number, [HAS_WARNINGS])
 				}
 
 				const errors = parseErrors(logs)
 				if (errors) {
 					message += `**Errors found in pack**\n\n${errors}\n`
-					addLabels(github, issue_number, [HAS_WARNINGS])
+					addLabels(github, issue_number, [HAS_ERRORS])
 					createComment(github, issue_number, message)
 					return
 				}
